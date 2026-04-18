@@ -1,50 +1,68 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import LoadingScreen from './components/Onboarding/LoadingScreen';
+import AuthScreen from './components/Onboarding/AuthScreen';
+import RunModelChoice from './components/Onboarding/RunModelChoice';
+import ModelPicker from './components/Onboarding/ModelPicker';
+import DownloadScreen from './components/Onboarding/DownloadScreen';
+import HermesSetup from './components/Onboarding/HermesSetup';
+import Dashboard from './components/Dashboard';
+import './App.css';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [step, setStep] = useState(0); // 0=loading, 1=auth, 2=choice, 3=model picker, 4=download, 5=hermes, 6=dashboard
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  const next = () => setStep(s => s + 1);
+
+  // Initialize data folders on mount
+  useEffect(() => {
+    const initFolders = async () => {
+      try {
+        const path = await invoke<string>('ensure_data_folder');
+        console.log("✅ Operarius folders initialized at:", path);
+      } catch (err) {
+        console.error("Folder initialization failed:", err);
+      }
+    };
+    initFolders();
+  }, []);
+
+  // Auto-transition from Loading to Auth for demo purposes
+  useEffect(() => {
+    if (step === 0) {
+      const timer = setTimeout(next, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <div className="antialiased text-[#1C1C1E] selection:bg-black selection:text-white">
+      {step === 0 && (
+        <LoadingScreen onRetry={next} />
+      )}
+      
+      {step === 1 && (
+        <AuthScreen onComplete={next} />
+      )}
+      
+      {step === 2 && (
+        <RunModelChoice onSelectLocal={next} />
+      )}
+      
+      {step === 3 && (
+        <ModelPicker onContinue={next} />
+      )}
+      
+      {step === 4 && (
+        <DownloadScreen onComplete={next} />
+      )}
+      
+      {step === 5 && (
+        <HermesSetup onComplete={next} />
+      )}
+      
+      {step === 6 && <Dashboard />}
+    </div>
   );
 }
 
