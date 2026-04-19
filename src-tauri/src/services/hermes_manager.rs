@@ -2,7 +2,7 @@ use tauri::AppHandle;
 
 #[deprecated(note = "Please use services::supervisor instead")]
 pub fn start_gateway(app: &AppHandle) {
-    crate::services::supervisor::start_hermes(app, None);
+    crate::services::supervisor::start_hermes(app);
 }
 
 #[deprecated(note = "Please use services::supervisor instead")]

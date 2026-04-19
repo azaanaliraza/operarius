@@ -9,6 +9,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // 1. Initialize Ecosystem (Folders)
             let _ = services::setup::init(app.handle());
@@ -36,6 +37,81 @@ pub fn run() {
                     .execute(&p)
                     .await
                     .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS chat_history (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT,
+                        session_id TEXT,
+                        message_content TEXT,
+                        response_content TEXT,
+                        created_at TEXT,
+                        platform TEXT,
+                        chat_id TEXT
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS files (
+                        id TEXT PRIMARY KEY,
+                        filename TEXT,
+                        file_type TEXT,
+                        file_size INTEGER,
+                        mime_type TEXT,
+                        uploaded_at INTEGER,
+                        user_id TEXT,
+                        platform TEXT,
+                        indexed BOOLEAN,
+                        content TEXT
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS knowledge_base (
+                        id TEXT PRIMARY KEY,
+                        title TEXT,
+                        content TEXT,
+                        file_id TEXT,
+                        source TEXT,
+                        created_at INTEGER,
+                        user_id TEXT,
+                        tags TEXT
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS rag_chunks (
+                        id TEXT PRIMARY KEY,
+                        file_id TEXT,
+                        content TEXT,
+                        embedding_json TEXT,
+                        created_at TEXT
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS file_blobs (
+                        id TEXT PRIMARY KEY,
+                        file_id TEXT,
+                        data BLOB,
+                        created_at TEXT
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
                 
                 println!("[DB] Migration Success: Persistence Node Ready.");
 
@@ -44,7 +120,7 @@ pub fn run() {
 
             // --- DETERMINISTIC STARTUP SEQUENCE (Non-blocking) ---
             let handle = app.handle().clone();
-            let pool_clone = pool.clone(); 
+            let pool_for_bridge = pool.clone();
             tauri::async_runtime::spawn(async move {
                 let port = crate::services::supervisor::LLAMA_PORT;
                 
@@ -59,22 +135,37 @@ pub fn run() {
 
                 if let Some(model_path) = default_model {
                     let model_str = model_path.to_string_lossy().to_string();
-                    
-                    // 2. Fetch platform token
-                    let token: Option<String> = sqlx::query_scalar("SELECT value FROM secrets WHERE key = 'Telegram'")
-                        .fetch_optional(&pool_clone)
-                        .await
+
+                    // Ensure embedding model exists for RAG indexing/retrieval.
+                    let mut embedding_model = std::fs::read_dir(crate::services::setup::get_base_dir().join("embeddings"))
                         .ok()
-                        .flatten();
+                        .and_then(|mut entries| entries.find_map(|e| {
+                            let path = e.ok()?.path();
+                            if path.extension()? == "gguf" { Some(path.to_string_lossy().to_string()) } else { None }
+                        }));
 
-                    // 3. Write Secured Manifest
-                    let _ = crate::services::config_writer::write_hermes_config("llama", "llama.cpp", token.clone(), port);
+                    if embedding_model.is_none() {
+                        let _ = crate::commands::download_embedding_model(handle.clone()).await;
+                        embedding_model = std::fs::read_dir(crate::services::setup::get_base_dir().join("embeddings"))
+                            .ok()
+                            .and_then(|mut entries| entries.find_map(|e| {
+                                let path = e.ok()?.path();
+                                if path.extension()? == "gguf" { Some(path.to_string_lossy().to_string()) } else { None }
+                            }));
+                    }
+                    
 
-                    // 4. Ignite Brain
+
+                    // 2. Write Hermes configuration
+                    let _ = crate::services::config_writer::write_hermes_config("llama", "llama.cpp", None, port);
+                    // 3. Ignite Brain and Telegram bridge
                     if crate::services::supervisor::start_llama(&handle, &model_str, port).is_ok() {
                         crate::services::supervisor::wait_for_llama(&handle).await;
-                        crate::services::supervisor::start_hermes(&handle, token);
-                        crate::services::supervisor::monitor(handle, model_str, port);
+                        if let Some(embedding_model) = embedding_model.clone() {
+                            let _ = crate::services::supervisor::start_embedding(&handle, &embedding_model);
+                        }
+                        crate::services::telegram_bridge::start(pool_for_bridge.clone(), handle.clone());
+                        crate::services::supervisor::monitor(handle, model_str, port, embedding_model);
                     }
                 } else {
                     println!("[ORCHESTRATOR] Brain in standby: No models found.");
@@ -107,10 +198,18 @@ pub fn run() {
             commands::start_inference_server,
             commands::create_default_rag_agent,
             commands::chat_with_rag_agent,
+            commands::get_chat_history,
             commands::check_model_exists,
             commands::save_app_token,
             commands::get_connected_apps,
             commands::remove_app_token,
+            commands::setup_telegram_bot,
+            commands::upload_document,
+            commands::search_documents,
+            commands::query_rag_agent,
+            commands::get_knowledge_base,
+            commands::get_indexed_files,
+            commands::get_file_metadata,
             commands::install_skill,
             commands::list_skills,
             commands::fetch_hf_models,

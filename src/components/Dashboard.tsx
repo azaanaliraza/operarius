@@ -32,10 +32,6 @@ const Dashboard: React.FC = () => {
         setEngineStatus('ACTIVE');
         console.log("[Dashboard] Inference server ready");
 
-        // Start Hermes gateway for Telegram/messaging (non-blocking)
-        invoke('launch_hermes', { modelPath: '', embeddingPath: '' })
-          .then(() => console.log("[Dashboard] Hermes gateway started"))
-          .catch(e => console.warn("[Dashboard] Hermes gateway:", e));
       } catch (e) {
         console.error("[Dashboard] Engine boot failed:", e);
         setEngineStatus('ERROR');
@@ -137,12 +133,12 @@ const Dashboard: React.FC = () => {
                       <TelemetryItem label="Knowledge Index" status="Standby" color="amber" />
                       <TelemetryItem label="Hermes Gateway" status={engineStatus === 'ACTIVE' ? "Connected" : "Waiting"} color={engineStatus === 'ACTIVE' ? "emerald" : "blue"} />
                       <div className="mt-auto pt-4 border-t border-dashed border-gray-100">
-                        <button 
-                          onClick={() => setShowConnect(true)} 
-                          className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-all flex items-center gap-2"
-                        >
-                          <Plus className="w-3 h-3" /> Connect Telegram
-                        </button>
+                                          <button 
+                                            onClick={() => setShowConnect(true)} 
+                                            className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-all flex items-center gap-2"
+                                          >
+                                            <Plus className="w-3 h-3" /> Connect Telegram
+                                          </button>
                       </div>
                    </div>
                 </div>

@@ -30,6 +30,7 @@ fn get_binary_path(app: &AppHandle, name: &str) -> PathBuf {
 }
 
 pub const LLAMA_PORT: u16 = 8080;
+pub const EMBEDDING_PORT: u16 = 8081;
 pub const HERMES_PORT: u16 = 8989;
 
 pub fn find_free_port() -> u16 {
@@ -38,12 +39,6 @@ pub fn find_free_port() -> u16 {
 
 pub fn get_current_port() -> u16 {
     LLAMA_PORT
-}
-
-static ACTIVE_TOKEN: OnceLock<Mutex<Option<String>>> = OnceLock::new();
-
-fn token_slot() -> &'static Mutex<Option<String>> {
-    ACTIVE_TOKEN.get_or_init(|| Mutex::new(None))
 }
 
 
@@ -85,7 +80,7 @@ pub fn start_llama(app: &AppHandle, model_path: &str, _port: u16) -> Result<(), 
         .args(&[
             "--model", model_path, 
             "--port", &LLAMA_PORT.to_string(), 
-            "--ctx-size", "131072", 
+            "--ctx-size", "65536", 
             "--parallel", "1",
             "--flash-attn", "on",
             "--jinja",
@@ -142,12 +137,7 @@ fn ensure_hermes_runtime(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(target)
 }
 
-pub fn start_hermes(app: &AppHandle, token: Option<String>) {
-    // Store token if provided
-    if let Some(ref t) = token {
-        *token_slot().lock().unwrap() = Some(t.clone());
-    }
-    
+pub fn start_hermes(app: &AppHandle) {
     let mut map = supervisor_map().lock().unwrap();
     
     // 1. Global Cleanse ALWAYS
@@ -178,26 +168,18 @@ pub fn start_hermes(app: &AppHandle, token: Option<String>) {
     cmd.env("HERMES_HOME", &home_dir);
     cmd.env("GATEWAY_ALLOW_ALL_USERS", "true");
     
-    // Custom Intelligence Handshake (Primary + Auxiliary)
+    // Custom Intelligence Handshake (Primary only)
     cmd.env("HERMES_PROVIDER", "custom");
     cmd.env("CUSTOM_MODEL_BASE_URL", format!("http://127.0.0.1:{}/v1", LLAMA_PORT));
     cmd.env("CUSTOM_MODEL_NAME", "llama");
-    cmd.env("HERMES_AGENT_CONTEXT_WINDOW", "131072"); // Force 128k Window
-    
-    cmd.env("HERMES_AUXILIARY_PROVIDER", "custom");
-    cmd.env("CUSTOM_AUXILIARY_MODEL_BASE_URL", format!("http://127.0.0.1:{}/v1", LLAMA_PORT));
-    cmd.env("CUSTOM_AUXILIARY_MODEL_NAME", "llama");
+    cmd.env("HERMES_AGENT_CONTEXT_WINDOW", "65536");
+    cmd.env("HERMES_MAX_ITERATIONS", "6");
     
     // Fallback Protection
     cmd.env("HERMES_NO_FALLBACK", "true");
     cmd.env("OPENROUTER_API_KEY", "disabled");
     cmd.env("MISTRAL_API_KEY", "disabled");
     
-    // Use stored token
-    let effective_token = token.or_else(|| token_slot().lock().unwrap().clone());
-    if let Some(t) = effective_token {
-        cmd.env("TELEGRAM_BOT_TOKEN", t);
-    }
 
     cmd.arg("gateway").arg("run").arg("--replace");
     
@@ -210,7 +192,42 @@ pub fn start_hermes(app: &AppHandle, token: Option<String>) {
     }
 }
 
-pub fn monitor(app: AppHandle, model: String, port: u16) {
+pub fn start_embedding(app: &AppHandle, model_path: &str) -> Result<(), String> {
+    let mut map = supervisor_map().lock().unwrap();
+
+    if map.contains_key("embedding") {
+        return Ok(());
+    }
+
+    if std::net::TcpListener::bind(("127.0.0.1", EMBEDDING_PORT)).is_err() {
+        let _ = Command::new("pkill").arg("-9").arg("-f").arg(format!("--port {}", EMBEDDING_PORT)).output();
+    }
+
+    let bin = get_binary_path(app, "bin/llama-server");
+    let lib_dir = get_binary_path(app, "bin/llama/lib");
+
+    println!("[SUPERVISOR] Igniting Embedding Server on port {}...", EMBEDDING_PORT);
+
+    let child = Command::new(&bin)
+        .env("DYLD_LIBRARY_PATH", &lib_dir)
+        .args(&[
+            "--model", model_path,
+            "--port", &EMBEDDING_PORT.to_string(),
+            "--ctx-size", "8192",
+            "--embedding",
+            "--pooling", "mean",
+            "--host", "127.0.0.1"
+        ])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|e| format!("Embedding server failed: {}", e))?;
+
+    map.insert("embedding", child);
+    Ok(())
+}
+
+pub fn monitor(app: AppHandle, model: String, port: u16, embedding_model: Option<String>) {
     tauri::async_runtime::spawn(async move {
         loop {
             sleep(Duration::from_secs(10)).await; // Less aggressive checking
@@ -222,16 +239,9 @@ pub fn monitor(app: AppHandle, model: String, port: u16) {
                 map.remove("llama");
                 drop(map);
                 let _ = start_llama(&app, &model, port);
-                map = supervisor_map().lock().unwrap();
-            }
-
-            // Check Hermes
-            if map.get_mut("hermes").map_or(true, |c| c.try_wait().ok().flatten().is_some()) {
-                println!("[SUPERVISOR] Hermes restoring...");
-                map.remove("hermes");
-                drop(map);
-                start_hermes(&app, None);
-                map = supervisor_map().lock().unwrap();
+                if let Some(ref em) = embedding_model {
+                    let _ = start_embedding(&app, em);
+                }
             }
         }
     });
