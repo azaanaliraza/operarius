@@ -1,3 +1,0 @@
-#!/bin/bash
-export HERMES_HOME="/Users/azaanaliraza/Documents/Operarius/hermes"
-exec /Users/azaanaliraza/Documents/Operarius/runtime/python/bin/hermes "$@"

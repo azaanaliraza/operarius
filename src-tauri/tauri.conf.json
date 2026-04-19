@@ -12,9 +12,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "externalBin": [
-      "hermes",
-      "llama-server"
+    "resources": [
+      "bin/llama-server",
+      "bin/*.dylib",
+      "sidecars/hermes-agent"
     ]
   },
   "app": {

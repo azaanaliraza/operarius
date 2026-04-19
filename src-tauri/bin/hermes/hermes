@@ -1,0 +1,3 @@
+#!/bin/bash
+export PYTHONPATH="/Users/azaanaliraza/.hermes/hermes-agent"
+/Users/azaanaliraza/.hermes/hermes-agent/venv/bin/python3 /Users/azaanaliraza/.hermes/hermes-agent/hermes "$@"
