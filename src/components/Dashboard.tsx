@@ -1,153 +1,215 @@
-import React, { useState } from 'react';
-import { MessageCircle, BarChart3, Clock, Plus, Settings, LogOut, AppWindow, ArrowRight, Zap, Target, BookOpen } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Cpu, HardDrive, Zap, Settings, Shield, 
+  Activity, Plus, 
+  ChevronRight, LayoutGrid, MessageSquare,
+  Radio, Sparkles
+} from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import ConnectPanel from './ConnectPanel';
-import AgentBuilder from './AgentBuilder';
+import RagChat from './RagChat';
 
 const Dashboard: React.FC = () => {
+  const [hw, setHw] = useState<any>(null);
   const [showConnect, setShowConnect] = useState(false);
-  const [showBuilder, setShowBuilder] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<'BOOTING' | 'ACTIVE' | 'ERROR'>('BOOTING');
+  const [activeTab, setActiveTab] = useState<'fleet' | 'neural'>('fleet');
+
+  const bootedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (bootedRef.current) return;
+    bootedRef.current = true;
+
+    // 1. Scan hardware
+    invoke('scan_hardware').then(setHw).catch(console.error);
+
+    // 2. Start inference server + hermes gateway
+    const boot = async () => {
+      try {
+        console.log("[Dashboard] Starting inference server...");
+        await invoke('start_inference_server', { modelPath: '' });
+        setEngineStatus('ACTIVE');
+        console.log("[Dashboard] Inference server ready");
+
+        // Start Hermes gateway for Telegram/messaging (non-blocking)
+        invoke('launch_hermes', { modelPath: '', embeddingPath: '' })
+          .then(() => console.log("[Dashboard] Hermes gateway started"))
+          .catch(e => console.warn("[Dashboard] Hermes gateway:", e));
+      } catch (e) {
+        console.error("[Dashboard] Engine boot failed:", e);
+        setEngineStatus('ERROR');
+      }
+    };
+    boot();
+  }, []);
 
   return (
-    <div className="flex h-screen bg-[#F8F9FA] font-sans selection:bg-black selection:text-white overflow-hidden">
-      {/* Sidebar - Precision Miniaturized */}
-      <aside className="w-20 md:w-64 bg-white border-r border-gray-100 flex flex-col shadow-sm transition-all duration-500 relative z-30">
-        <div className="p-4 md:p-6 flex items-center gap-3 border-b border-gray-50 h-20">
-          <div className="w-9 h-9 bg-black rounded-xl flex items-center justify-center text-white text-2xl shadow-lg flex-shrink-0">🐆</div>
-          <div className="hidden md:block">
-            <div className="font-bold text-sm tracking-tighter text-[#1C1C1E] uppercase">Operarius</div>
-            <div className="text-[7px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">Local • v0.1</div>
-          </div>
+    <div className="flex h-screen bg-[#F8F9FA] text-[#1C1C1E] font-sans selection:bg-black selection:text-white overflow-hidden">
+      {/* SIDEBAR */}
+      <aside className="w-[60px] border-r border-[#E5E5E7] flex flex-col items-center py-6 gap-8 bg-white/50 backdrop-blur-xl shrink-0">
+        <div className="w-8 h-8 bg-black rounded-xl flex items-center justify-center shadow-lg hover:scale-110 transition-all cursor-pointer">
+           <Zap className="w-4 h-4 text-white fill-white" />
         </div>
-
-        <nav className="p-4 flex-1 overflow-y-auto no-scrollbar">
-          <div className="hidden md:block text-[8px] font-bold text-[#9CA3AF] uppercase tracking-[0.2em] mb-3 ml-2">Control</div>
-          <div className="space-y-1">
-            <NavItem icon={<MessageCircle className="w-4 h-4" />} label="Chat" active={!showBuilder} onClick={() => setShowBuilder(false)} />
-            <NavItem icon={<Target className="w-4 h-4" />} label="Automation" active={showBuilder} onClick={() => setShowBuilder(true)} />
-            <NavItem icon={<BarChart3 className="w-4 h-4" />} label="Metrics" />
-            <NavItem icon={<Clock className="w-4 h-4" />} label="Threads" />
+        
+        <nav className="flex flex-col gap-6">
+          <div 
+            onClick={() => setActiveTab('fleet')}
+            className={`p-2 rounded-lg transition-all cursor-pointer ${activeTab === 'fleet' ? 'bg-black text-white shadow-md' : 'text-gray-400 hover:bg-black/5'}`}
+          > 
+            <LayoutGrid className="w-5 h-5" /> 
           </div>
-
-          <div className="hidden md:block text-[8px] font-bold text-[#9CA3AF] uppercase tracking-[0.2em] mb-3 ml-2 mt-8">Deployment</div>
-          <div className="space-y-1 hidden md:block">
-            <AgentItem label="Morning Intel" color="bg-emerald-500" />
-            <AgentItem label="Market Scout" color="bg-blue-500" />
-            <AgentItem label="Email Filter" color="bg-amber-500" inactive />
+          <div 
+            onClick={() => setActiveTab('neural')}
+            className={`p-2 rounded-lg transition-all cursor-pointer ${activeTab === 'neural' ? 'bg-black text-white shadow-md' : 'text-gray-400 hover:bg-black/5'}`}
+          > 
+            <Sparkles className="w-5 h-5" /> 
           </div>
+          <div className="p-2 text-gray-400 hover:bg-black/5 rounded-lg transition-all cursor-pointer" onClick={() => setShowConnect(true)}> <Radio className="w-5 h-5" /> </div>
+          <div className="p-2 text-gray-400 hover:bg-black/5 rounded-lg transition-all cursor-pointer"> <Shield className="w-5 h-5" /> </div>
         </nav>
 
-        {/* Connect Button */}
-        <div className="p-4 border-t border-gray-50">
-          <button 
-            onClick={() => setShowConnect(true)}
-            className="w-full bg-black text-white py-3 rounded-xl font-bold shadow-xl flex items-center justify-center gap-2 hover:bg-[#2D2D2E] active:scale-[0.98] transition-all duration-300 text-xs"
-          >
-            <AppWindow className="w-4 h-4" />
-            <span className="hidden md:block">Connect</span>
-          </button>
-        </div>
-
-        <div className="p-4 flex items-center justify-center md:justify-between px-6 h-16 opacity-40">
-           <Settings className="w-4 h-4 hover:text-black cursor-pointer" />
-           <LogOut className="w-4 h-4 hover:text-red-500 cursor-pointer" />
+        <div className="mt-auto flex flex-col gap-6">
+          <div className={`p-2 rounded-lg transition-all relative ${engineStatus === 'ACTIVE' ? 'text-emerald-500' : engineStatus === 'ERROR' ? 'text-red-500' : 'text-gray-300'}`}>
+            <Activity className={`w-5 h-5 ${engineStatus === 'BOOTING' ? 'animate-pulse' : ''}`} />
+            {engineStatus === 'ACTIVE' && <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white shadow-sm"></div>}
+          </div>
+          <div className="p-2 text-gray-400 hover:bg-black/5 rounded-lg transition-all cursor-pointer"> <Settings className="w-5 h-5" /> </div>
         </div>
       </aside>
 
-      {/* Main Content - No Scroll, Perfect Fit */}
-      <main className="flex-1 p-6 md:p-10 flex flex-col h-full bg-[#F8F9FA]">
-        <header className="flex flex-col md:flex-row md:justify-between md:items-start mb-8 gap-4">
-          <div className="max-w-xl">
-            <h1 className="text-fluid-xl font-bold tracking-tight text-[#1C1C1E] mb-2 leading-none">Automate Anything.</h1>
-            <p className="text-xs md:text-sm text-[#6B7280] font-medium opacity-70">
-              Describe a workflow. Operarius will deploy as a local agent instantly.
-            </p>
+      {/* MAIN */}
+      <main className="flex-1 flex flex-col min-w-0 bg-white">
+        <header className="h-[72px] px-8 flex items-center justify-between border-b border-[#E5E5E7] bg-white/30 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-4">
+             <h1 className="text-sm font-black tracking-widest uppercase italic bg-black text-white px-3 py-1 rounded">
+               {activeTab === 'fleet' ? 'Fleet Management' : 'Neural Recall'}
+             </h1>
+             <div className="h-4 w-[1px] bg-gray-200"></div>
+             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{hw?.cpu_brand || "Scanning silicon..."}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="bg-white border border-gray-100 px-4 py-2 rounded-xl font-bold shadow-sm hover:border-black transition-all text-[10px] uppercase tracking-widest">
-              Library
-            </button>
-            <button 
-              onClick={() => setShowBuilder(true)}
-              className="bg-black text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2 hover:bg-[#2D2D2E] transition-all text-[10px] uppercase tracking-widest group"
-            >
-              <Plus className="w-3 h-3 group-hover:rotate-90 transition-transform" /> New Agent
-            </button>
+          <div className="flex items-center gap-3">
+             <div className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border ${
+               engineStatus === 'ACTIVE' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' :
+               engineStatus === 'ERROR' ? 'bg-red-50 border-red-200 text-red-600' :
+               'bg-gray-50 border-gray-200 text-gray-400 animate-pulse'
+             }`}>
+               {engineStatus === 'ACTIVE' ? '● Engine Online' : engineStatus === 'ERROR' ? '● Engine Error' : '◌ Booting...'}
+             </div>
           </div>
         </header>
 
-        {/* Action Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <QuickCard emoji="🌞" title="Briefing" desc="Inbox + Slack status" />
-          <QuickCard emoji="💬" title="Follow-up" desc="Lead management" />
-          <QuickCard emoji="📋" title="Research" desc="LinkedIn + Web" />
-          <QuickCard emoji="✉️" title="Triage" desc="Auto-draft email" />
-        </div>
-
-        {/* Input Zone - Centered Floating Feel */}
-        <div className="flex-1 flex flex-col justify-center max-w-3xl mx-auto w-full">
-          <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-12 text-center group hover:border-black transition-all duration-500 shadow-sm hover:shadow-2xl relative overflow-hidden">
-            <div className="mx-auto w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-3xl mb-4 group-hover:rotate-6 transition-transform relative z-10">🐆</div>
-            <h3 className="text-lg md:text-xl font-bold text-[#1C1C1E] mb-1 tracking-tight relative z-10 uppercase italic">Command Central</h3>
-            <p className="text-[#6B7280] font-medium mb-8 text-[10px] uppercase tracking-[0.2em] relative z-10 opacity-50">Local Intelligence Active</p>
-            
-            <div className="flex flex-wrap gap-2 justify-center relative z-10">
-              <ActionButton icon={<Zap className="w-3.5 h-3.5" />} label="Quick Start" />
-              <ActionButton icon={<Target className="w-3.5 h-3.5" />} label="Advanced" />
-              <ActionButton icon={<Plus className="w-3.5 h-3.5" />} label="Import Routine" />
+        <div className="flex-1 overflow-hidden relative">
+          {!hw ? (
+            <div className="h-full w-full flex items-center justify-center">
+              <div className="animate-pulse text-[10px] font-black uppercase tracking-widest text-gray-300">Synchronizing Silicon...</div>
             </div>
-            
-            <div className="absolute -right-16 -bottom-16 w-48 h-48 bg-gray-50 rounded-full blur-3xl opacity-40"></div>
-          </div>
-        </div>
+          ) : activeTab === 'fleet' ? (
+            <div className="h-full overflow-y-auto p-8 no-scrollbar bg-gradient-to-b from-white/30 to-transparent">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <StatCard icon={<Cpu className="w-4 h-4" />} label="Logic" val={hw.cpu_cores + " Cores"} sub="Optimized for Silicon" />
+                <StatCard icon={<Zap className="w-4 h-4" />} label="Neural Memory" val={hw.ram_gb + " GB"} sub="Unified LPDDR5" />
+                <StatCard icon={<HardDrive className="w-4 h-4" />} label="Vault" val={hw.storage_free_gb + " GB Free"} sub="Local RAG-Ready" />
+              </div>
 
-        <footer className="mt-8 flex justify-center opacity-20">
-          <div className="px-4 py-1.5 rounded-full bg-white border border-gray-100 text-[8px] font-bold uppercase tracking-[0.3em]">
-            Hermes Local Execution • 0% Cloud
-          </div>
-        </footer>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400">Deployed Agents</h3>
+                    <button 
+                      onClick={() => setActiveTab('neural')} 
+                      className="flex items-center gap-2 text-[10px] font-black uppercase hover:text-black transition-all"
+                    >
+                      <MessageSquare className="w-3 h-3" /> Open Chat
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <AgentCard name="Operarius Core" type="Local LLM" status={engineStatus === 'ACTIVE' ? 'Ready' : 'Booting'} desc="Direct inference via Metal GPU acceleration." />
+                    <AgentCard name="Knowledge Agent" type="RAG Specialist" status="Ready" desc="Reads from ~/Documents/Operarius/knowledge/" />
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                   <h3 className="text-xs font-black uppercase tracking-[0.3em] text-gray-400">System Telemetry</h3>
+                   <div className="bg-white border border-[#E5E5E7] rounded-3xl p-6 min-h-[300px] shadow-sm flex flex-col gap-4">
+                      <TelemetryItem label="Inference Server" status={engineStatus === 'ACTIVE' ? "Online" : "Booting"} color={engineStatus === 'ACTIVE' ? "emerald" : "amber"} />
+                      <TelemetryItem label="Knowledge Index" status="Standby" color="amber" />
+                      <TelemetryItem label="Hermes Gateway" status={engineStatus === 'ACTIVE' ? "Connected" : "Waiting"} color={engineStatus === 'ACTIVE' ? "emerald" : "blue"} />
+                      <div className="mt-auto pt-4 border-t border-dashed border-gray-100">
+                        <button 
+                          onClick={() => setShowConnect(true)} 
+                          className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-all flex items-center gap-2"
+                        >
+                          <Plus className="w-3 h-3" /> Connect Telegram
+                        </button>
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <RagChat />
+          )}
+        </div>
       </main>
-      
+
       {showConnect && <ConnectPanel onClose={() => setShowConnect(false)} />}
-      {showBuilder && <AgentBuilder onClose={() => setShowBuilder(false)} />}
     </div>
   );
 };
 
-const NavItem: React.FC<{ icon: React.ReactNode, label: string, active?: boolean, onClick?: () => void }> = ({ icon, label, active, onClick }) => (
-  <div 
-    onClick={onClick}
-    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold cursor-pointer transition-all duration-300 ${
-    active ? 'bg-black text-white shadow-md' : 'hover:bg-gray-50 text-[#6B7280] hover:text-black'
-  }`}>
-    {icon}
-    <span className="hidden md:block text-[11px] uppercase tracking-wider">{label}</span>
-  </div>
-);
-
-const AgentItem: React.FC<{ label: string, color: string, inactive?: boolean }> = ({ label, color, inactive }) => (
-  <div className={`flex items-center gap-3 px-4 py-2 text-[10px] font-bold transition-all duration-300 cursor-pointer rounded-lg hover:bg-gray-50 uppercase tracking-widest ${
-    inactive ? 'opacity-30' : 'text-[#374151]'
-  }`}>
-    <span className={`w-1.5 h-1.5 rounded-full ${color} ${!inactive && 'animate-pulse'}`}></span>
-    {label}
-  </div>
-);
-
-const QuickCard: React.FC<{ emoji: string, title: string, desc: string }> = ({ emoji, title, desc }) => (
-  <div className="bg-white rounded-2xl p-6 hover:shadow-xl transition-all duration-500 cursor-pointer border border-gray-50 hover:border-black group relative overflow-hidden shadow-sm flex flex-col items-start min-h-[140px]">
-    <div className="text-3xl mb-4 group-hover:scale-110 transition-transform">{emoji}</div>
-    <div className="font-bold text-sm mb-1 text-[#1C1C1E] uppercase tracking-tight">{title}</div>
-    <p className="text-[#6B7280] text-[9px] font-medium leading-normal uppercase tracking-wider opacity-60">{desc}</p>
-    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 duration-300 text-black">
-      <ArrowRight className="w-3.5 h-3.5" />
+const StatCard = ({ icon, label, val, sub }: any) => (
+  <div className="bg-white border border-[#E5E5E7] p-6 rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+    <div className="flex items-start justify-between mb-4">
+      <div className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
+        {icon}
+      </div>
+      <div className="p-1 px-2 border border-gray-100 rounded-lg text-[8px] font-black uppercase text-gray-400 tracking-tighter">Live</div>
     </div>
+    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</div>
+    <div className="text-2xl font-black text-[#1C1C1E] tracking-tighter mb-1">{val}</div>
+    <div className="text-[10px] text-gray-400 font-medium">{sub}</div>
   </div>
 );
 
-const ActionButton: React.FC<{ icon: React.ReactNode, label: string }> = ({ icon, label }) => (
-  <button className="px-5 py-2.5 bg-gray-50 hover:bg-black hover:text-white rounded-lg font-bold transition-all duration-300 border border-transparent text-[10px] uppercase tracking-widest flex items-center gap-2">
-    {icon} {label}
-  </button>
+const AgentCard = ({ name, type: agentType, status, desc }: any) => (
+  <div className="bg-white border border-[#E5E5E7] p-6 rounded-[2.5rem] shadow-sm hover:border-black/20 transition-all cursor-pointer group">
+    <div className="flex justify-between items-start mb-4">
+      <div className="flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full ${status === 'Ready' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
+        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{status}</span>
+      </div>
+      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:translate-x-1 transition-all" />
+    </div>
+    <h4 className="text-sm font-black text-black mb-1 italic uppercase tracking-tighter">{name}</h4>
+    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">{agentType}</div>
+    <p className="text-[11px] text-gray-500 leading-relaxed font-medium">{desc}</p>
+  </div>
 );
+
+const TelemetryItem = ({ label, status, color }: any) => {
+  const colorMap: Record<string, string> = {
+    emerald: 'bg-emerald-50 text-emerald-600',
+    amber: 'bg-amber-50 text-amber-600',
+    blue: 'bg-blue-50 text-blue-600',
+    red: 'bg-red-50 text-red-600',
+  };
+  const dotMap: Record<string, string> = {
+    emerald: 'bg-emerald-500',
+    amber: 'bg-amber-500',
+    blue: 'bg-blue-500',
+    red: 'bg-red-500',
+  };
+  return (
+    <div className="flex items-center justify-between group cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-xl transition-all">
+      <span className="text-[11px] font-bold text-gray-500">{label}</span>
+      <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${colorMap[color] || 'bg-gray-50 text-gray-600'}`}>
+        <div className={`w-1 h-1 rounded-full ${dotMap[color] || 'bg-gray-500'}`}></div>
+        {status}
+      </div>
+    </div>
+  );
+};
 
 export default Dashboard;

@@ -13,16 +13,18 @@
     "active": true,
     "targets": "all",
     "externalBin": [
-      "sidecars/hermes-agent/hermes",
-      "sidecars/llama-cpp/llama-server"
+      "hermes",
+      "llama-server"
     ]
   },
   "app": {
     "windows": [
       {
         "title": "Operarius",
-        "width": 800,
-        "height": 600
+        "width": 1100,
+        "height": 800,
+        "minWidth": 500,
+        "minHeight": 500
       }
     ],
     "security": {
