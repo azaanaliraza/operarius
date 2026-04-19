@@ -80,6 +80,12 @@ It runs on tagged pushes and manual dispatches, then publishes GitHub Release as
 - macOS Apple Silicon (`aarch64-apple-darwin`)
 - Windows x64 (`x86_64-pc-windows-msvc`)
 
+Each release now includes:
+
+- End-user installer assets (`.dmg`, `.msi`, and `.exe` when available)
+- A `SHA256SUMS.txt` file for integrity verification
+- A release note file with install and verification guidance
+
 To cut a release:
 
 ```bash
@@ -88,6 +94,21 @@ git push origin v0.1.0
 ```
 
 After the workflow finishes, download the generated installers from the GitHub Release page.
+
+Recommended installer choice:
+
+- macOS: use the `.dmg` matching your architecture
+- Windows: use `.msi` for most users
+
+Checksum verification examples:
+
+```bash
+shasum -a 256 -c SHA256SUMS.txt
+```
+
+```powershell
+Get-FileHash .\Operarius-setup.msi -Algorithm SHA256
+```
 
 ## Signing And Secrets
 

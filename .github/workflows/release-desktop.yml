@@ -86,6 +86,8 @@ jobs:
   publish-release:
     needs: build-release
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
     steps:
       - name: Download all release artifacts
@@ -95,18 +97,62 @@ jobs:
           merge-multiple: true
           path: release-artifacts
 
+      - name: Collect end-user install assets
+        run: |
+          set -euo pipefail
+          mkdir -p release-upload
+
+          # Keep only files users actually download/install.
+          find release-artifacts -type f \(
+            -name "*.dmg" -o
+            -name "*.app.tar.gz" -o
+            -name "*.msi" -o
+            -name "*.exe" -o
+            -name "*.zip"
+          \) -print0 | while IFS= read -r -d '' file; do
+            cp "$file" release-upload/
+          done
+
+          if ! ls -1 release-upload/* >/dev/null 2>&1; then
+            echo "No installable assets were found in release artifacts."
+            exit 1
+          fi
+
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd release-upload
+          find . -type f -print0 | sort -z | xargs -0 shasum -a 256 > SHA256SUMS.txt
+
+      - name: Generate release notes
+        run: |
+          set -euo pipefail
+          cat > release-upload/RELEASE_NOTES.md <<EOF
+          Operarius ${RELEASE_TAG}
+
+          Download and install:
+          - macOS Intel: download the x86_64 .dmg file
+          - macOS Apple Silicon: download the aarch64 .dmg file
+          - Windows x64: download the .msi installer (or .exe when provided)
+
+          Verify downloads:
+          - SHA-256 checksums are published in SHA256SUMS.txt
+          - macOS/Linux verify command: shasum -a 256 -c SHA256SUMS.txt
+          - Windows PowerShell verify command: Get-FileHash <file> -Algorithm SHA256
+
+          Notes:
+          - Unsigned builds can still be installed, but your OS may show a security prompt.
+          - If both .msi and .exe are present on Windows, .msi is recommended for most users.
+          EOF
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          name: Operarius ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          body: |
-            Desktop release for macOS and Windows.
-
-            Targets:
-            - macOS Intel
-            - macOS Apple Silicon
-            - Windows x64
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Operarius ${{ env.RELEASE_TAG }}
+          body_path: release-upload/RELEASE_NOTES.md
+          generate_release_notes: true
+          append_body: true
           draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
-          files: release-artifacts/**
+          files: release-upload/**
