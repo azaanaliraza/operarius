@@ -1,0 +1,6 @@
+[submodule "forge"]
+	path = forge
+	url = https://github.com/ggerganov/llama.cpp.git
+[submodule "src-tauri/sidecars/hermes-agent"]
+	path = src-tauri/sidecars/hermes-agent
+	url = https://github.com/NousResearch/hermes-agent.git

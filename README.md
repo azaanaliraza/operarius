@@ -1,34 +1,99 @@
-# Tauri + React + Typescript
+# Operarius
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+Operarius is a Tauri desktop app with a React and TypeScript frontend, backed by a Rust command layer and native packaging for macOS and Windows. It is designed to run locally, ship as a desktop installer, and bundle the runtime assets it needs without requiring a separate server.
 
-## Recommended IDE Setup
+## What It Does
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+Operarius provides a desktop shell for local and remote model workflows, onboarding, dashboards, chat surfaces, Telegram setup, and native integration with bundled sidecars and binaries. The current app branding uses the Panther icon set throughout the web and native layers.
 
-## Release Builds (macOS + Windows)
+## Tech Stack
 
-- Workflow file: `.github/workflows/release-desktop.yml`
-- Triggers:
-	- Push a tag like `v0.1.0`
-	- Manual run via GitHub Actions (`workflow_dispatch`)
-- Output: GitHub Release artifacts for:
-	- macOS Intel (`x86_64-apple-darwin`)
-	- macOS Apple Silicon (`aarch64-apple-darwin`)
-	- Windows (`x86_64-pc-windows-msvc`)
+- Frontend: React 19, Vite 7, TypeScript 5.8
+- Desktop shell: Tauri v2
+- Styling and utilities: Tailwind CSS v4, Lucide icons, Zustand
+- Package manager: Bun for local development and release CI
+- Native layer: Rust via `src-tauri`
 
-### How to cut a release
+## Repository Layout
+
+- `src/` - React application source
+- `src/assets/` - app artwork and branding assets
+- `src-tauri/` - Tauri configuration, Rust commands, icons, and sidecars
+- `.github/workflows/` - release automation
+- `docs/` - release and signing notes
+
+## Prerequisites
+
+Install these before working on the app:
+
+- Bun
+- Rust toolchain
+- A supported Tauri development environment for your platform
+- VS Code with the Tauri and rust-analyzer extensions if you want the best editor support
+
+## Local Development
+
+Install dependencies:
+
+```bash
+bun install
+```
+
+Run the web frontend only:
+
+```bash
+bun run dev
+```
+
+Run the desktop app:
+
+```bash
+bun run tauri:dev
+```
+
+The Tauri build hooks use `bun run dev` before development and `bun run build` before packaging, as defined in [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json).
+
+## Building
+
+Build the frontend only:
+
+```bash
+bun run build
+```
+
+Build a desktop release locally from the Tauri project:
+
+```bash
+cd src-tauri
+bun tauri build
+```
+
+Release builds target macOS and Windows and bundle the configured native icons, resources, and sidecars.
+
+## Release Process
+
+The automated release workflow lives in [.github/workflows/release-desktop.yml](.github/workflows/release-desktop.yml).
+
+It runs on tagged pushes and manual dispatches, then publishes GitHub Release assets for:
+
+- macOS Intel (`x86_64-apple-darwin`)
+- macOS Apple Silicon (`aarch64-apple-darwin`)
+- Windows x64 (`x86_64-pc-windows-msvc`)
+
+To cut a release:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-After the workflow completes, download installers from the GitHub Release page.
+After the workflow finishes, download the generated installers from the GitHub Release page.
 
-### GitHub Secrets for trusted distribution
+## Signing And Secrets
 
-Set these repository secrets before releasing signed builds:
+Unsigned builds work without any secrets. That is the default release path.
+
+If you want signed and notarized macOS builds, configure the optional GitHub secrets below:
 
 - `APPLE_CERTIFICATE`
 - `APPLE_CERTIFICATE_PASSWORD`
@@ -39,4 +104,22 @@ Set these repository secrets before releasing signed builds:
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-Without Apple secrets, macOS artifacts still build but will not be signed/notarized.
+Without those secrets, the workflow still produces release artifacts, but macOS binaries will not be signed or notarized.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution workflow, commit conventions, validation steps, and pull request expectations.
+
+## Troubleshooting
+
+- If the dev server port is already in use, stop the conflicting process and restart `bun run tauri:dev`.
+- If native icons look stale, rebuild from the Panther assets in `src/assets/` and verify the generated Tauri icon set in `src-tauri/icons/`.
+- If a release job fails on dependency installation, make sure `bun.lock` is up to date and committed.
+
+## Recommended IDE Setup
+
+- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+
+## License
+
+Refer to the repository files for licensing details.
