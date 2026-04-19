@@ -1,5 +1,13 @@
 # Release Signing Checklist
 
+You can release without any secrets. Secrets are only needed for signed and notarized distribution.
+
+## 0. No-secrets release (works now)
+
+- Push a version tag and the workflow will build release artifacts for macOS and Windows.
+- This path does not require Apple or Tauri signing secrets.
+- Output installers may show OS security prompts because they are unsigned.
+
 ## 1. Apple signing assets
 
 - Create a Developer ID Application certificate in Apple Developer.
@@ -30,7 +38,7 @@
   - `git push origin v0.1.0`
 - Or run GitHub Actions workflow `Release Desktop` manually.
 
-## 5. Add GitHub secrets (step-by-step)
+## 5. Add GitHub secrets (optional, for signed distribution)
 
 1. Open repository Settings.
 2. Go to Secrets and variables > Actions.
@@ -38,7 +46,7 @@
 4. Add each secret name/value from this checklist.
 5. Repeat until all required secrets are present.
 
-Required secret names:
+Optional secret names:
 
 - `APPLE_CERTIFICATE`
 - `APPLE_CERTIFICATE_PASSWORD`
@@ -52,7 +60,7 @@ Required secret names:
 ## 6. Verify outputs
 
 - GitHub Release contains macOS Intel, macOS Apple Silicon, and Windows artifacts.
-- On macOS, verify notarization:
+- If you enabled signing/notarization, verify on macOS:
   - `spctl -a -vv /Applications/Operarius.app`
 
 ## 7. Note on Windows resources
