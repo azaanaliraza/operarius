@@ -37,12 +37,15 @@ jobs:
           - platform: macos-13
             build_args: --target x86_64-apple-darwin
             extra_args: ""
+            tauri_script: bun tauri
           - platform: macos-14
             build_args: --target aarch64-apple-darwin
             extra_args: ""
+            tauri_script: bun tauri
           - platform: windows-latest
             build_args: --target x86_64-pc-windows-msvc
             extra_args: --config src-tauri/tauri.windows.conf.json
+            tauri_script: npm run tauri
 
     runs-on: ${{ matrix.platform }}
 
@@ -83,4 +86,5 @@ jobs:
             - Windows x64
           releaseDraft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
+          tauriScript: ${{ matrix.tauri_script }}
           args: ${{ matrix.build_args }} ${{ matrix.extra_args }}
