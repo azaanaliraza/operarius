@@ -74,6 +74,7 @@ jobs:
         run: npm ci
 
       - name: Build release artifacts
+        working-directory: src-tauri
         run: ${{ matrix.tauri_script }} build ${{ matrix.build_args }} ${{ matrix.extra_args }}
 
       - name: Upload built artifacts
