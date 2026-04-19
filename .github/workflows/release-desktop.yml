@@ -71,7 +71,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install frontend dependencies
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Build release artifacts
         working-directory: src-tauri
