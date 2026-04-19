@@ -35,14 +35,17 @@ jobs:
       matrix:
         include:
           - platform: macos-13
+            rust_target: x86_64-apple-darwin
             build_args: --target x86_64-apple-darwin
             extra_args: ""
             tauri_script: bun tauri
           - platform: macos-14
+            rust_target: aarch64-apple-darwin
             build_args: --target aarch64-apple-darwin
             extra_args: ""
             tauri_script: bun tauri
           - platform: windows-latest
+            rust_target: x86_64-pc-windows-msvc
             build_args: --target x86_64-pc-windows-msvc
             extra_args: --config src-tauri/tauri.windows.conf.json
             tauri_script: npm run tauri
@@ -70,21 +73,40 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build and publish release artifacts
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build release artifacts
+        run: ${{ matrix.tauri_script }} build ${{ matrix.build_args }} ${{ matrix.extra_args }}
+
+      - name: Upload built artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          releaseName: Operarius ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          releaseBody: |
+          name: release-${{ matrix.rust_target }}
+          path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/**
+          if-no-files-found: error
+
+  publish-release:
+    needs: build-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release-artifacts
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          name: Operarius ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          body: |
             Desktop release for macOS and Windows.
 
             Targets:
             - macOS Intel
             - macOS Apple Silicon
             - Windows x64
-          releaseDraft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
+          draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
-          tauriScript: ${{ matrix.tauri_script }}
-          args: ${{ matrix.build_args }} ${{ matrix.extra_args }}
+          files: release-artifacts/**
