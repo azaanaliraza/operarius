@@ -77,7 +77,7 @@ jobs:
         run: ${{ matrix.tauri_script }} build ${{ matrix.build_args }} ${{ matrix.extra_args }}
 
       - name: Upload built artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-${{ matrix.rust_target }}
           path: src-tauri/target/${{ matrix.rust_target }}/release/bundle/**
@@ -89,7 +89,7 @@ jobs:
 
     steps:
       - name: Download all release artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: release-*
           merge-multiple: true
