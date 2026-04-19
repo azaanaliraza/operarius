@@ -30,8 +30,32 @@
   - `git push origin v0.1.0`
 - Or run GitHub Actions workflow `Release Desktop` manually.
 
-## 5. Verify outputs
+## 5. Add GitHub secrets (step-by-step)
+
+1. Open repository Settings.
+2. Go to Secrets and variables > Actions.
+3. Click New repository secret.
+4. Add each secret name/value from this checklist.
+5. Repeat until all required secrets are present.
+
+Required secret names:
+
+- `APPLE_CERTIFICATE`
+- `APPLE_CERTIFICATE_PASSWORD`
+- `APPLE_SIGNING_IDENTITY`
+- `APPLE_ID`
+- `APPLE_PASSWORD`
+- `APPLE_TEAM_ID`
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+## 6. Verify outputs
 
 - GitHub Release contains macOS Intel, macOS Apple Silicon, and Windows artifacts.
 - On macOS, verify notarization:
   - `spctl -a -vv /Applications/Operarius.app`
+
+## 7. Note on Windows resources
+
+- The release workflow uses `src-tauri/tauri.windows.conf.json` for Windows builds.
+- This avoids bundling mac-only `.dylib` files and `llama-server` binary during Windows packaging.
