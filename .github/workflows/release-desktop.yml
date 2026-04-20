@@ -1,5 +1,8 @@
 name: Release Desktop
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     tags:
@@ -34,7 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-13
+          - platform: macos-14
             rust_target: x86_64-apple-darwin
             build_args: --target x86_64-apple-darwin
             extra_args: ""
@@ -128,21 +131,29 @@ jobs:
         run: |
           set -euo pipefail
           cat > release-upload/RELEASE_NOTES.md <<EOF
-          Operarius ${RELEASE_TAG}
+          # ✹ OPERARIUS ${RELEASE_TAG}
+          > **The Private AI Orchestrator: Local. Deterministic. Sovereign.**
 
-          Download and install:
-          - macOS Intel: download the x86_64 .dmg file
-          - macOS Apple Silicon: download the aarch64 .dmg file
-          - Windows x64: download the .msi installer (or .exe when provided)
+          Operarius ${RELEASE_TAG} marks the transition to a production-ready, monolithic process architecture optimized for Apple Silicon and private neural computing.
 
-          Verify downloads:
-          - SHA-256 checksums are published in SHA256SUMS.txt
-          - macOS/Linux verify command: shasum -a 256 -c SHA256SUMS.txt
-          - Windows PowerShell verify command: Get-FileHash <file> -Algorithm SHA256
+          ### ⚡ Neural Breakthroughs
+          - **Synchronized KV Cache**: Anchored system prompts for sub-second responses.
+          - **Resonance Logic**: Unified 64k-context threshold for deep reasoning.
+          - **Sanctuary Protocol**: Isolated runtime sanctuary to prevent infinite rebuild loops.
 
-          Notes:
-          - Unsigned builds can still be installed, but your OS may show a security prompt.
-          - If both .msi and .exe are present on Windows, .msi is recommended for most users.
+          ### 📦 Installation Assets
+          - **macOS Apple Silicon**: Download the \`aarch64\` .dmg for native M1/M2/M3 performance.
+          - **macOS Intel**: Download the \`x86_64\` .dmg (cross-compiled for legacy compatibility).
+          - **Windows x64**: Download the \`.msi\` for a seamless logic-vault installation.
+
+          ### 🛡️ Security & Verification
+          Every asset is hashed for your protection. Verify your download using the included \`SHA256SUMS.txt\`.
+
+          \`\`\`bash
+          shasum -a 256 -c SHA256SUMS.txt
+          \`\`\`
+
+          **Operarius is 100% Local. Your data never leaves your silicon.**
           EOF
 
       - name: Publish GitHub Release
