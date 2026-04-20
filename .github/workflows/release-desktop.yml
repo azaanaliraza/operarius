@@ -108,12 +108,12 @@ jobs:
           mkdir -p release-upload
 
           # Keep only files users actually download/install.
-          find release-artifacts -type f \(
-            -name "*.dmg" -o
-            -name "*.app.tar.gz" -o
-            -name "*.msi" -o
-            -name "*.exe" -o
-            -name "*.zip"
+          find release-artifacts -type f \( \
+            -name "*.dmg" -o \
+            -name "*.app.tar.gz" -o \
+            -name "*.msi" -o \
+            -name "*.exe" -o \
+            -name "*.zip" \
           \) -print0 | while IFS= read -r -d '' file; do
             cp "$file" release-upload/
           done
