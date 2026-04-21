@@ -1,10 +1,15 @@
 import React from 'react';
 import { Cpu, Cloud, Zap } from 'lucide-react';
+import panther from '../../assets/panther.png';
 
 const RunModelChoice: React.FC<{ onSelectLocal: () => void }> = ({ onSelectLocal }) => {
   return (
     <div className="h-screen w-screen bg-[#F8F9FA] flex flex-col items-center justify-center p-8 overflow-hidden animate-in fade-in duration-700 selection:bg-black selection:text-white">
       <div className="w-full max-w-[420px] text-center">
+        <div className="relative w-16 h-16 mx-auto mb-8">
+          <div className="absolute inset-0 bg-black rounded-3xl rotate-12 opacity-5 scale-90 -z-10"></div>
+          <img src={panther} alt="Operarius" className="w-full h-full object-contain brightness-0" />
+        </div>
         
         <div className="mb-10">
           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.25em] mb-3 opacity-50">Local or Cloud</div>

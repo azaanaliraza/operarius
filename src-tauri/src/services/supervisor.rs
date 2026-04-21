@@ -14,18 +14,53 @@ fn supervisor_map() -> &'static Mutex<HashMap<&'static str, Child>> {
 }
 
 fn get_binary_path(app: &AppHandle, name: &str) -> PathBuf {
+    let candidate_name = platform_binary_name(name);
+
     // 1. Try resource dir (Production)
     if let Some(res_dir) = app.path().resource_dir().ok() {
-        let bundled = res_dir.join(name);
+        let bundled = res_dir.join(&candidate_name);
         if bundled.exists() { return bundled; }
     }
     
     // 2. Try development path
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     if cwd.ends_with("src-tauri") {
-        cwd.join(name.strip_prefix("src-tauri/").unwrap_or(name))
+        let relative_name = candidate_name
+            .strip_prefix("src-tauri/")
+            .unwrap_or(&candidate_name);
+        cwd.join(relative_name)
     } else {
-        cwd.join("src-tauri").join(name)
+        cwd.join("src-tauri").join(candidate_name)
+    }
+}
+
+fn platform_binary_name(name: &str) -> String {
+    if cfg!(target_os = "windows") && !name.ends_with(".exe") {
+        format!("{}.exe", name)
+    } else {
+        name.to_string()
+    }
+}
+
+fn process_kill_command(process_name: &str) -> Command {
+    if cfg!(target_os = "windows") {
+        let mut cmd = Command::new("taskkill");
+        cmd.args(["/F", "/IM", process_name]);
+        cmd
+    } else {
+        let mut cmd = Command::new("pkill");
+        cmd.args(["-9", "-f", process_name]);
+        cmd
+    }
+}
+
+fn library_environment_variable() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "PATH"
+    } else if cfg!(target_os = "macos") {
+        "DYLD_LIBRARY_PATH"
+    } else {
+        "LD_LIBRARY_PATH"
     }
 }
 
@@ -55,7 +90,7 @@ pub fn start_llama(app: &AppHandle, model_path: &str, _port: u16) -> Result<(), 
             return Ok(());
         } else {
             println!("[SUPERVISOR] WARNING: Port {} is busy but not owned. Attempting Cleanse...", LLAMA_PORT);
-            let _ = Command::new("pkill").arg("-9").arg("-f").arg("llama-server").output();
+            let _ = process_kill_command(&platform_binary_name("llama-server")).output();
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
     }
@@ -76,7 +111,7 @@ pub fn start_llama(app: &AppHandle, model_path: &str, _port: u16) -> Result<(), 
     println!("[SYSTEM] Llama URI: http://127.0.0.1:{}", LLAMA_PORT);
     
     let child = Command::new(&bin)
-        .env("DYLD_LIBRARY_PATH", &lib_dir)
+        .env(library_environment_variable(), &lib_dir)
         .args(&[
             "--model", model_path, 
             "--port", &LLAMA_PORT.to_string(), 
@@ -108,7 +143,7 @@ pub async fn wait_for_llama(app: &AppHandle) {
         if let Ok(resp) = client.get(&url).send().await {
             if resp.status().is_success() {
                 println!("[SUPERVISOR] Llama Brain is ACTIVE after {}s.", i);
-                let _ = app.emit("brain-status", serde_json::json!({ "ready": true, "context": 131072 }));
+                let _ = app.emit("brain-status", serde_json::json!({ "ready": true, "context": 65536 }));
                 let igniting = LLAMA_IGNITING.get_or_init(|| Mutex::new(false));
                 *igniting.lock().unwrap() = false;
                 return;
@@ -126,13 +161,23 @@ fn ensure_hermes_runtime(app: &AppHandle) -> Result<PathBuf, String> {
     if !target.exists() {
         println!("[SUPERVISOR] Evacuating Hermes to Sanctuary: {:?}", target);
         let _ = fs::create_dir_all(target.parent().unwrap());
-        
-        // Use cp -R for deep mirror
-        let _ = Command::new("cp")
-            .arg("-R")
-            .arg(&source)
-            .arg(&target)
-            .output();
+
+        if source.is_dir() {
+            let _ = fs::create_dir_all(&target);
+            if let Ok(entries) = fs::read_dir(&source) {
+                for entry in entries.flatten() {
+                    let from = entry.path();
+                    let to = target.join(entry.file_name());
+                    if from.is_dir() {
+                        let _ = fs::create_dir_all(&to);
+                    } else {
+                        let _ = fs::copy(&from, &to);
+                    }
+                }
+            }
+        } else {
+            let _ = fs::copy(&source, &target);
+        }
     }
     Ok(target)
 }
@@ -141,7 +186,7 @@ pub fn start_hermes(app: &AppHandle) {
     let mut map = supervisor_map().lock().unwrap();
     
     // 1. Global Cleanse ALWAYS
-    let _ = Command::new("pkill").arg("-9").arg("-f").arg("hermes").output();
+    let _ = process_kill_command(&platform_binary_name("hermes")).output();
 
     if map.contains_key("hermes") {
         println!("[SUPERVISOR] Hermes Gateway is ALREADY OWNED — skipping ignition.");
@@ -156,7 +201,7 @@ pub fn start_hermes(app: &AppHandle) {
         }
     };
 
-    let bin = runtime_dir.join("hermes");
+    let bin = runtime_dir.join(platform_binary_name("hermes"));
     let home_dir = crate::services::setup::get_base_dir().join("hermes");
     let _ = fs::create_dir_all(&home_dir);
 
@@ -200,7 +245,7 @@ pub fn start_embedding(app: &AppHandle, model_path: &str) -> Result<(), String> 
     }
 
     if std::net::TcpListener::bind(("127.0.0.1", EMBEDDING_PORT)).is_err() {
-        let _ = Command::new("pkill").arg("-9").arg("-f").arg(format!("--port {}", EMBEDDING_PORT)).output();
+        let _ = process_kill_command(&platform_binary_name("llama-server")).output();
     }
 
     let bin = get_binary_path(app, "bin/llama-server");
@@ -209,7 +254,7 @@ pub fn start_embedding(app: &AppHandle, model_path: &str) -> Result<(), String> 
     println!("[SUPERVISOR] Igniting Embedding Server on port {}...", EMBEDDING_PORT);
 
     let child = Command::new(&bin)
-        .env("DYLD_LIBRARY_PATH", &lib_dir)
+        .env(library_environment_variable(), &lib_dir)
         .args(&[
             "--model", model_path,
             "--port", &EMBEDDING_PORT.to_string(),
@@ -252,6 +297,6 @@ pub fn stop_all() {
     for (_, mut child) in map.drain() {
         let _ = child.kill();
     }
-    let _ = Command::new("pkill").arg("-9").arg("llama-server").output();
-    let _ = Command::new("pkill").arg("-9").arg("-f").arg("hermes").output();
+    let _ = process_kill_command(&platform_binary_name("llama-server")).output();
+    let _ = process_kill_command(&platform_binary_name("hermes")).output();
 }

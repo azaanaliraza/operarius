@@ -112,6 +112,102 @@ pub fn run() {
                 .execute(&p)
                 .await
                 .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS user_preferences (
+                        user_id TEXT,
+                        pref_key TEXT,
+                        pref_value TEXT,
+                        updated_at TEXT,
+                        PRIMARY KEY (user_id, pref_key)
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS user_memory_entries (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT,
+                        scope TEXT,
+                        memory_key TEXT,
+                        memory_value TEXT,
+                        weight INTEGER DEFAULT 50,
+                        updated_at TEXT,
+                        UNIQUE(user_id, scope, memory_key)
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS task_learnings (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT,
+                        task TEXT,
+                        lesson TEXT,
+                        success INTEGER DEFAULT 1,
+                        created_at TEXT
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS user_skills (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT,
+                        name TEXT,
+                        description TEXT,
+                        instruction TEXT,
+                        is_active INTEGER DEFAULT 1,
+                        triggers TEXT,
+                        created_at TEXT,
+                        updated_at TEXT
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS agent_logs (
+                        id TEXT PRIMARY KEY,
+                        ts TEXT,
+                        level TEXT,
+                        scope TEXT,
+                        message TEXT,
+                        details TEXT
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS agent_workflows (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT,
+                        name TEXT,
+                        workflow_json TEXT,
+                        compiled_json TEXT,
+                        updated_at TEXT
+                    )"
+                )
+                .execute(&p)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                // Backward-compatible chat history enrichment for file upload cards.
+                let _ = sqlx::query("ALTER TABLE chat_history ADD COLUMN event_type TEXT")
+                    .execute(&p)
+                    .await;
+                let _ = sqlx::query("ALTER TABLE chat_history ADD COLUMN event_payload TEXT")
+                    .execute(&p)
+                    .await;
                 
                 println!("[DB] Migration Success: Persistence Node Ready.");
 
@@ -199,8 +295,11 @@ pub fn run() {
             commands::create_default_rag_agent,
             commands::chat_with_rag_agent,
             commands::get_chat_history,
+            commands::get_agent_logs,
             commands::check_model_exists,
             commands::save_app_token,
+            commands::set_app_flag,
+            commands::get_app_flag,
             commands::get_connected_apps,
             commands::remove_app_token,
             commands::setup_telegram_bot,
@@ -213,7 +312,29 @@ pub fn run() {
             commands::install_skill,
             commands::list_skills,
             commands::fetch_hf_models,
-            commands::fetch_hf_files
+            commands::fetch_hf_files,
+            commands::get_model_catalog,
+            commands::get_active_model,
+            commands::switch_active_model,
+            commands::delete_model_file,
+            commands::set_user_preference,
+            commands::get_user_preferences,
+            commands::upsert_memory_entry,
+            commands::list_memory_entries,
+            commands::delete_memory_entry,
+            commands::add_task_learning,
+            commands::list_task_learnings,
+            commands::create_user_skill,
+            commands::list_user_skills,
+            commands::set_user_skill_active,
+            commands::delete_user_skill,
+            commands::get_chat_upload_event_payload,
+            commands::verify_model_links,
+            commands::fetch_skill_marketplace,
+            commands::install_marketplace_skill,
+            commands::save_agent_workflow,
+            commands::list_agent_workflows,
+            commands::compile_agent_workflow
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

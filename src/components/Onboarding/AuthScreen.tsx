@@ -1,4 +1,5 @@
 import React from 'react';
+import panther from '../../assets/panther.png';
 
 const AuthScreen: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   return (
@@ -10,7 +11,9 @@ const AuthScreen: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
           <h1 className="text-2xl font-black tracking-tighter text-[#1C1C1E]">OPERARIUS</h1>
         </div>
 
-        <div className="text-5xl mb-12 transform hover:scale-110 transition-transform duration-700 cursor-default">🐆</div>
+        <div className="mb-8 w-24 h-24 mx-auto">
+          <img src={panther} alt="Operarius Panther" className="w-full h-full object-contain" />
+        </div>
 
         <button 
           onClick={onComplete}

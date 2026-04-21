@@ -21,4 +21,12 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+
+# Runtime state
+*.db
+*.db-shm
+*.db-wal
+.operarius/
+src-tauri/state.db
+src-tauri/.operarius/
+

@@ -12,6 +12,7 @@ import './App.css';
 function App() {
   const [step, setStep] = useState<number>(0); 
   const [error, setError] = useState<string | null>(null);
+  const [bootRoute, setBootRoute] = useState<'loading' | 'setup' | 'dashboard'>('loading');
 
   // Initialize data folders on mount
   useEffect(() => {
@@ -28,13 +29,53 @@ function App() {
     initFolders();
   }, []);
 
+  useEffect(() => {
+    const hydrateLaunchState = async () => {
+      try {
+        const completed = await invoke<boolean>('get_app_flag', { key: 'setup_complete' });
+        if (completed) {
+          setBootRoute('dashboard');
+          setStep(6);
+        } else {
+          setBootRoute('setup');
+          setStep(0);
+        }
+      } catch (err) {
+        console.error('Failed to read app launch state:', err);
+        setBootRoute('setup');
+        setStep(0);
+      }
+    };
+
+    hydrateLaunchState();
+  }, []);
+
   // Auto-transition from Loading (0) to Auth (1) after 2s
   useEffect(() => {
+    if (bootRoute !== 'setup') {
+      return;
+    }
+
     if (step === 0) {
       const timer = setTimeout(() => setStep(1), 2000);
       return () => clearTimeout(timer);
     }
+  }, [step, bootRoute]);
+
+  useEffect(() => {
+    if (step !== 6) {
+      return;
+    }
+
+    invoke('set_app_flag', { key: 'setup_complete', value: 'true' }).catch((err) => {
+      console.error('Failed to persist setup completion:', err);
+    });
   }, [step]);
+
+  const openSetupFlow = () => {
+    setBootRoute('setup');
+    setStep(0);
+  };
 
   if (error) {
     return (
@@ -55,7 +96,7 @@ function App() {
       {step === 2 && <RunModelChoice onSelectLocal={() => setStep(3)} />}
       {step === 3 && <ModelPicker onContinue={() => setStep(4)} />}
       {step === 4 && <DownloadScreen onComplete={() => setStep(6)} />}
-      {step === 6 && <Dashboard />}
+      {step === 6 && <Dashboard onOpenSetup={openSetupFlow} />}
     </div>
   );
 }

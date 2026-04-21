@@ -48,7 +48,7 @@ const ModelPicker: React.FC<{ onContinue: () => void }> = ({ onContinue }) => {
       speed: "09T/S", 
       tag: "INTELLIGENCE", 
       repo: "NousResearch/Hermes-3-Llama-3.1-8B-GGUF", 
-      file: "Hermes-3-Llama-3.1-8B-Q4_K_M.gguf" 
+      file: "Hermes-3-Llama-3.1-8B.Q4_K_M.gguf" 
     },
     { 
       name: "Qwen 2.5 7B Q4_K_M", 
@@ -65,6 +65,22 @@ const ModelPicker: React.FC<{ onContinue: () => void }> = ({ onContinue }) => {
       tag: "PRO", 
       repo: "unsloth/gemma-4-26B-A4B-it-GGUF", 
       file: "gemma-4-26B-A4B-it-UD-Q4_K_M.gguf" 
+    },
+    {
+      name: "Qwen3.5-9B-Q4_K_M (GGUF)",
+      size: "5.3GB",
+      speed: "08T/S",
+      tag: "CODER",
+      repo: "lmstudio-community/Qwen3.5-9B-GGUF",
+      file: "Qwen3.5-9B-Q4_K_M.gguf"
+    },
+    {
+      name: "Qwen3.5-9B-mlx-lm-mxfp4 (MLX)",
+      size: "5.0GB",
+      speed: "10T/S",
+      tag: "MLX",
+      repo: "mlx-community/Qwen3.5-9B-MLX-4bit",
+      file: "Qwen3.5-9B-MLX-4bit"
     }
   ]);
 

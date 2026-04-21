@@ -17,6 +17,11 @@ export const TelegramSetupPanel: React.FC<TelegramSetupPanelProps> = ({ onClose,
   const botFatherLink = 'https://t.me/BotFather';
   const userinfoLink = 'https://t.me/userinfobot';
 
+  const shellClass = 'bg-white border border-[#E5E5E7] rounded-[2rem] shadow-2xl';
+  const titleClass = 'text-xs font-black uppercase tracking-[0.3em] text-gray-500';
+  const primaryButton = 'px-5 py-3 rounded-xl bg-black text-white text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] active:scale-[0.99] transition-all';
+  const secondaryButton = 'px-5 py-3 rounded-xl border border-gray-200 text-gray-600 text-[10px] font-black uppercase tracking-widest hover:border-black/20 hover:text-black transition-all';
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(botFatherLink);
     setCopied(true);
@@ -49,111 +54,65 @@ export const TelegramSetupPanel: React.FC<TelegramSetupPanelProps> = ({ onClose,
   if (step === 'guide') {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto">
-          {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex justify-between items-center">
-            <h2 className="text-2xl font-bold">Setup Telegram Bot</h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-all"
-            >
-              <X className="w-5 h-5" />
+        <div className={`${shellClass} max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col`}>
+          <div className="p-6 border-b border-[#E5E5E7] bg-[#FAFAFA] flex items-center justify-between">
+            <div>
+              <div className={titleClass}>Telegram Connect</div>
+              <h2 className="text-2xl font-black tracking-tight text-[#1C1C1E] mt-1">Setup Telegram Bot</h2>
+            </div>
+            <button onClick={onClose} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black hover:border-black/20 transition-all">
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Content */}
-          <div className="p-8 space-y-6">
-            {/* Step 1 */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm">
-                  1
+          <div className="p-6 space-y-4 overflow-y-auto no-scrollbar">
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                ['1', 'Create bot', 'Open @BotFather and create a new bot.'],
+                ['2', 'Copy token', 'Paste the bot token here after BotFather gives it to you.'],
+                ['3', 'Connect', 'Operarius will link Telegram to your local agent.'],
+              ].map(([stepNumber, title, copy]) => (
+                <div key={stepNumber} className="border border-gray-100 rounded-[1.4rem] p-4 bg-white shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-black mb-3">{stepNumber}</div>
+                  <div className="text-sm font-black text-[#1C1C1E]">{title}</div>
+                  <div className="text-[11px] text-gray-500 leading-relaxed mt-2">{copy}</div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Create a Bot via @BotFather</h3>
+              ))}
+            </div>
+
+            <div className="border border-gray-100 rounded-[1.6rem] p-5 bg-white shadow-sm">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-sm font-black text-[#1C1C1E]">Keep your token private</div>
+                  <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                    Never share your bot token publicly. Anyone with the token can control your bot.
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-gray-600 ml-11">
-                Telegram requires all bots to be created through @BotFather, an official bot management tool.
-              </p>
-              <div className="ml-11 flex gap-2">
-                <a
-                  href={botFatherLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium"
-                >
-                  Open @BotFather
-                  <ExternalLink className="w-4 h-4" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Quick Links</div>
+              <div className="flex flex-wrap gap-2">
+                <a href={botFatherLink} target="_blank" rel="noopener noreferrer" className={primaryButton}>
+                  Open @BotFather <ExternalLink className="w-3.5 h-3.5 inline-block ml-1" />
                 </a>
-                <button
-                  onClick={handleCopyLink}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-all text-sm font-medium"
-                >
-                  <Copy className="w-4 h-4" />
-                  {copied ? 'Copied!' : 'Copy Link'}
+                <button onClick={handleCopyLink} className={secondaryButton}>
+                  <Copy className="w-3.5 h-3.5 inline-block mr-1" />
+                  {copied ? 'Copied' : 'Copy Link'}
                 </button>
+                <a href={userinfoLink} target="_blank" rel="noopener noreferrer" className={secondaryButton}>
+                  Verify Account
+                </a>
               </div>
             </div>
 
-            {/* Step 2 */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm">
-                  2
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">Send Commands to @BotFather</h3>
-              </div>
-              <p className="text-sm text-gray-600 ml-11 mb-3">
-                In the @BotFather chat, send these commands in order:
-              </p>
-              <div className="ml-11 space-y-2 text-sm">
-                <code className="block bg-gray-100 p-3 rounded text-gray-900 font-mono">/newbot</code>
-                <p className="text-gray-600">→ Choose a display name (e.g., "Operarius Bot")</p>
-                <p className="text-gray-600 ml-4">→ Choose a unique username ending in "bot" (e.g., "operarius_bot")</p>
-                <p className="text-gray-600 ml-4 font-semibold text-blue-600">
-                  → Copy your bot token when @BotFather shows it
-                </p>
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm">
-                  3
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">Paste Token in Operarius</h3>
-              </div>
-              <p className="text-sm text-gray-600 ml-11">
-                Click "Next" below and paste your bot token. It looks like:
-              </p>
-              <code className="ml-11 block bg-gray-100 p-3 rounded text-gray-900 font-mono text-xs">
-                123456789:ABCdefGHIjklMNOpqrSTUvwxYZ
-              </code>
-            </div>
-
-            {/* Security Warning */}
-            <div className="ml-11 bg-amber-50 border-l-4 border-amber-400 p-4 rounded">
-              <div className="flex gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-semibold text-amber-900">Keep your token secret!</p>
-                  <p className="text-amber-800 mt-1">Never share your bot token publicly. Anyone with this token can control your bot.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Next Button */}
-            <div className="ml-11 flex gap-3 mt-8">
-              <button
-                onClick={() => setStep('input')}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-              >
-                I've Got My Token →
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setStep('input')} className={primaryButton}>
+                I've Got My Token
               </button>
-              <button
-                onClick={onClose}
-                className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-all font-medium"
-              >
+              <button onClick={onClose} className={secondaryButton}>
                 Cancel
               </button>
             </div>
@@ -166,22 +125,20 @@ export const TelegramSetupPanel: React.FC<TelegramSetupPanelProps> = ({ onClose,
   if (step === 'input') {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex justify-between items-center">
-            <h2 className="text-xl font-bold">Paste Bot Token</h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-all"
-            >
-              <X className="w-5 h-5" />
+        <div className={`${shellClass} max-w-md w-full overflow-hidden`}>
+          <div className="p-6 border-b border-[#E5E5E7] bg-[#FAFAFA] flex justify-between items-center">
+            <div>
+              <div className={titleClass}>Telegram Connect</div>
+              <h2 className="text-xl font-black tracking-tight text-[#1C1C1E] mt-1">Paste Bot Token</h2>
+            </div>
+            <button onClick={onClose} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black hover:border-black/20 transition-all">
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Content */}
-          <div className="p-8 space-y-4">
+          <div className="p-6 space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">
+              <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">
                 Bot Token from @BotFather
               </label>
               <input
@@ -192,29 +149,29 @@ export const TelegramSetupPanel: React.FC<TelegramSetupPanelProps> = ({ onClose,
                   setError('');
                 }}
                 placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:border-black/20 bg-white font-mono text-sm"
               />
-              <p className="text-xs text-gray-500 mt-2">Token is hidden for security. Paste from your clipboard.</p>
+              <p className="text-[11px] text-gray-500 mt-2">Token is hidden for security. Paste from your clipboard.</p>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-sm">
                 {error}
               </div>
             )}
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-3 pt-2">
               <button
                 onClick={handleSetupTelegram}
                 disabled={loading || !token.trim()}
-                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all font-medium"
+                className={`${primaryButton} flex-1 disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 {loading ? 'Configuring...' : 'Configure Telegram'}
               </button>
               <button
                 onClick={() => setStep('guide')}
                 disabled={loading}
-                className="px-4 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-all font-medium"
+                className={`${secondaryButton} disabled:opacity-50`}
               >
                 Back
               </button>

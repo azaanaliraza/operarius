@@ -56,12 +56,31 @@ pub fn model_database() -> Vec<ModelMetadata> {
             downloaded: false,
             recommended_reason: "High reasoning capabilities for 16GB+ RAM.".to_string(),
         },
+        ModelMetadata {
+            id: "qwen3.5-9b-q4km".to_string(),
+            name: "Qwen3.5-9B-Q4_K_M (GGUF)".to_string(),
+            size_gb: 5.3,
+            speed_tps: 58,
+            use_case: "Advanced Coding + Analysis".to_string(),
+            downloaded: false,
+            recommended_reason: "Strong 9B coding/reasoning option for 10GB+ RAM budgets.".to_string(),
+        },
+        ModelMetadata {
+            id: "qwen3.5-9b-mlx-lm-mxfp4".to_string(),
+            name: "Qwen3.5-9B-mlx-lm-mxfp4 (MLX)".to_string(),
+            size_gb: 5.0,
+            speed_tps: 70,
+            use_case: "MLX Optimized Chat".to_string(),
+            downloaded: false,
+            recommended_reason: "Apple MLX path for users preferring omlx runtimes.".to_string(),
+        },
     ];
 
     // Check disk for existence
     for m in &mut catalog {
-        let path = models_dir.join(format!("{}.gguf", m.id));
-        m.downloaded = path.exists();
+        let direct = models_dir.join(&m.id);
+        let gguf = models_dir.join(format!("{}.gguf", m.id));
+        m.downloaded = direct.exists() || gguf.exists();
     }
 
     catalog

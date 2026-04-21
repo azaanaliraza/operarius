@@ -16,11 +16,27 @@ pub fn start(pool: SqlitePool, app: AppHandle) {
 
     tauri::async_runtime::spawn(async move {
         println!("[TELEGRAM_BRIDGE] Starting direct Telegram bridge");
+        crate::commands::emit_agent_log(
+            &app,
+            Some(&pool),
+            "info",
+            "telegram",
+            "Telegram bridge started",
+            serde_json::json!({})
+        ).await;
 
         let client = match Client::builder().timeout(Duration::from_secs(45)).build() {
             Ok(c) => c,
             Err(e) => {
                 println!("[TELEGRAM_BRIDGE] Failed to build HTTP client: {}", e);
+                crate::commands::emit_agent_log(
+                    &app,
+                    Some(&pool),
+                    "error",
+                    "telegram",
+                    "Failed to build Telegram HTTP client",
+                    serde_json::json!({ "error": e.to_string() })
+                ).await;
                 TELEGRAM_BRIDGE_RUNNING.store(false, Ordering::SeqCst);
                 return;
             }
@@ -161,6 +177,18 @@ pub fn start(pool: SqlitePool, app: AppHandle) {
                                     "Image indexed successfully (id: {}). You can now ask questions and mention the file name for best accuracy.",
                                     doc_id
                                 ));
+                                crate::commands::emit_agent_log(
+                                    &app,
+                                    Some(&pool),
+                                    "info",
+                                    "telegram",
+                                    "Telegram document indexed",
+                                    serde_json::json!({
+                                        "chat_id": chat_id,
+                                        "file_name": uploaded_file_name,
+                                        "document_id": doc_id,
+                                    })
+                                ).await;
                             }
                         }
                     }
@@ -176,6 +204,18 @@ pub fn start(pool: SqlitePool, app: AppHandle) {
                 };
 
                 println!("[TELEGRAM_BRIDGE] inbound chat_id={} text={}", chat_id, text);
+                crate::commands::emit_agent_log(
+                    &app,
+                    Some(&pool),
+                    "info",
+                    "telegram",
+                    "Telegram message received",
+                    serde_json::json!({
+                        "chat_id": chat_id,
+                        "has_text": !text.trim().is_empty(),
+                        "has_attachment": uploaded_file_name.is_some(),
+                    })
+                ).await;
 
                 let response = if text.is_empty() {
                     indexed_file_note.unwrap_or_else(|| {
@@ -204,11 +244,38 @@ pub fn start(pool: SqlitePool, app: AppHandle) {
 
                 if let Err(e) = client.post(&send_url).json(&send_body).send().await {
                     println!("[TELEGRAM_BRIDGE] sendMessage failed: {}", e);
+                    crate::commands::emit_agent_log(
+                        &app,
+                        Some(&pool),
+                        "warning",
+                        "telegram",
+                        "Telegram response send failed",
+                        serde_json::json!({
+                            "chat_id": chat_id,
+                            "error": e.to_string(),
+                        })
+                    ).await;
                 }
 
+                let event_type = if stored_message.starts_with("Uploaded file:") {
+                    Some("file_upload")
+                } else {
+                    None
+                };
+                let event_payload = if let Some(name) = uploaded_file_name.clone() {
+                    serde_json::json!({
+                        "filename": name,
+                        "status": "indexed",
+                        "source": "telegram"
+                    })
+                    .to_string()
+                } else {
+                    "".to_string()
+                };
+
                 if let Err(e) = sqlx::query(
-                    "INSERT INTO chat_history (id, user_id, session_id, message_content, response_content, created_at, platform, chat_id)
-                     VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?)"
+                    "INSERT INTO chat_history (id, user_id, session_id, message_content, response_content, created_at, platform, chat_id, event_type, event_payload)
+                     VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)"
                 )
                 .bind(uuid::Uuid::new_v4().to_string())
                 .bind(user_id)
@@ -217,11 +284,35 @@ pub fn start(pool: SqlitePool, app: AppHandle) {
                 .bind(send_body["text"].as_str().unwrap_or_default())
                 .bind("telegram")
                 .bind(chat_id.to_string())
+                .bind(event_type)
+                .bind(event_payload)
                 .execute(&pool)
                 .await
                 {
                     println!("[TELEGRAM_BRIDGE] failed to persist chat history: {}", e);
+                    crate::commands::emit_agent_log(
+                        &app,
+                        Some(&pool),
+                        "error",
+                        "telegram",
+                        "Failed to persist Telegram chat history",
+                        serde_json::json!({
+                            "chat_id": chat_id,
+                            "error": e.to_string(),
+                        })
+                    ).await;
                 } else {
+                    crate::commands::emit_agent_log(
+                        &app,
+                        Some(&pool),
+                        "info",
+                        "telegram",
+                        "Telegram conversation synced",
+                        serde_json::json!({
+                            "chat_id": chat_id,
+                            "has_file": uploaded_file_name.is_some(),
+                        })
+                    ).await;
                     app.emit("chat-history-updated", serde_json::json!({ "platform": "telegram" }))
                         .ok();
                 }
